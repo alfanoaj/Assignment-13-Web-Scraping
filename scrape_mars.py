@@ -12,13 +12,14 @@ def init_browser():
 
 
 # Function to scrape our mars data
-def scrape_info():
+def scrape():
     browser = init_browser()
+    combined = {}
 
     # declare a URL variable to visit the nasa news page and visit that URL.  Pause for 2 seconds to allow the page to fully load.
     url = 'https://mars.nasa.gov/news/?page=0&per_page=40&order=publish_date+desc%2Ccreated_at+desc&search=&category=19%2C165%2C184%2C204&blank_scope=Latest'
     browser.visit(url)
-    time.sleep(2)
+    time.sleep(1)
 
     #Scrape the data into BeautifulSoup
     html = browser.html
@@ -29,8 +30,6 @@ def scrape_info():
     text = soup.find(class_='rollover_description_inner')
     news_title = title.text
     news_text = text.text
-    print(news_title)
-    print(news_text)
 
     # Visit the following URL, scrape the data into BS to be discected.  
     url = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars"
@@ -49,7 +48,7 @@ def scrape_info():
 
     # Scrape the browser into soup and use soup to find the full resolution image of mars
     # Save the image url to a variable called `img_url`
-    time.sleep(2)
+    time.sleep(1)
     html = browser.html
     soup = BeautifulSoup(html, 'html.parser')
     img_url = soup.find("img", class_="fancybox-image")["src"]
@@ -63,9 +62,13 @@ def scrape_info():
     html = browser.html
     soup = BeautifulSoup(html, 'html.parser')
 
-    # Find the most recent tweet and store it in a variable
-    tweet = soup.find("p", class_="TweetTextSize TweetTextSize--normal js-tweet-text tweet-text")
-    mars_weather = tweet.text
+    # Find the most recent tweets on the twitter page, loop through till "Sol" is identified and report that tweet
+    tweets = soup.find_all("p", class_="TweetTextSize TweetTextSize--normal js-tweet-text tweet-text")
+    for tweet in tweets:
+        sol = tweet.text[0:3]
+        if sol == "Sol":
+            mars_weather = tweet.text
+            break
     
     #Declare another new URL for mars facts and read the tables on the page using pandas.
     url = 'https://space-facts.com/mars/'
@@ -73,10 +76,10 @@ def scrape_info():
     
     # Store the data in a dataframe for later
     facts_df = tables[0]
-    facts_df.columns = ["Classification", "Fact"]
-    facts_df.set_index('Classification', inplace=True)
-    facts_df.to_html('table.html')
-    facts_df
+    facts_df.columns = ["Description", "Value"]
+    facts_df.set_index('Description', inplace=True)
+    html_table = facts_df.to_html()
+    html_table = html_table.replace('\n', '')
 
     # Declare another URL to get enhanced images of the 4 hemispheres of mars.  Scrape the data into BS to get links to the enhanced images.
     url = "https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
@@ -99,7 +102,7 @@ def scrape_info():
     for hemi in img_url:
         url = base_url + hemi
         browser.visit(url)
-        time.sleep(2)
+        time.sleep(1)
         html = browser.html
         soup = BeautifulSoup(html, 'html.parser')
         links = soup.find_all(class_="downloads")
@@ -121,6 +124,7 @@ def scrape_info():
                       "featured_image_url": featured_image_url,
                       "mars_weather": mars_weather,
                       "hemisphere_image_urls": hemisphere_image_urls,
-                      "facts_df": facts_df}
+                      "facts_df": html_table
+                    }
     
     return combined
